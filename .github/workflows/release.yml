@@ -1,11 +1,17 @@
 # Builds BoxForge for Windows and macOS and attaches both to a GitHub release.
-# Run it by pushing a tag that starts with "v" (for example v0.1.0), or from the Actions tab with "Run workflow".
+# Run it by pushing a tag that starts with "v" (for example v0.2.6), or from the Actions tab with "Run workflow",
+# which builds both apps and publishes a release under the tag you type (it is created if it does not exist).
 name: Build release
 
 on:
   push:
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (for example v0.2.6)"
+        required: true
+        default: "v0.2.6"
 
 permissions:
   contents: write
@@ -43,7 +49,6 @@ jobs:
 
   release:
     needs: [windows, macos]
-    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,5 +58,7 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
           files: out/*.zip
           body_path: RELEASE_NOTES.md
