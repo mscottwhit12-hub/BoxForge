@@ -1,0 +1,57 @@
+# Builds BoxForge for Windows and macOS and attaches both to a GitHub release.
+# Run it by pushing a tag that starts with "v" (for example v0.1.0), or from the Actions tab with "Run workflow".
+name: Build release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyinstaller
+      - run: pyinstaller --noconfirm --windowed --onefile --name BoxForge --icon assets/boxforge.ico dieline_generator.py
+      - run: python -c "import shutil; shutil.make_archive('BoxForge-windows', 'zip', 'dist', 'BoxForge.exe')"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: BoxForge-windows.zip
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install pyinstaller
+      - run: pyinstaller --noconfirm --windowed --name BoxForge --icon assets/boxforge.icns dieline_generator.py
+      - run: ditto -c -k --sequesterRsrc --keepParent dist/BoxForge.app BoxForge-macos.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: BoxForge-macos.zip
+
+  release:
+    needs: [windows, macos]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*.zip
+          body_path: RELEASE_NOTES.md
